@@ -74,6 +74,7 @@ jupyter lab notebooks/
 
 * **Leakage control.** Imputers, encoders, scalers, PCA, TF-IDF vocabularies and IDF weights live inside one `sklearn.Pipeline` with the classifier. The label source column `job` is removed from the tabular features. Tokenisation (stateless) is the only step done before splitting.
 * **Disguised missing values.** `income = -1` is treated as missing (81 percent of rows) and compared against dropping high-missing columns and plain imputation.
+* **Untouched hold-out.** In Task 1 the 20 percent test split is carved out before EDA, cross-validation and model selection; the best configuration (by CV on the training part) is evaluated once on it.
 * **One-factor-at-a-time ablations** (`experiments:` blocks in YAML) make every comparison attributable to a single change.
 * **Imbalance-aware metrics.** macro-F1 is the primary metric, with class weights where the data are imbalanced.
 * **Failure isolation.** A failing configuration is recorded in the results table instead of aborting *Run all*.
@@ -103,4 +104,3 @@ Seeds are fixed in each config (`seed: 42`). `python scripts/make_submission.py`
 ## License
 
 Code: MIT (see `LICENSE`). Datasets keep their original licences.
-# ml-pipeline-multimodal

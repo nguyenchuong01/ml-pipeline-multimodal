@@ -61,11 +61,14 @@ viz.plot_missing(clean, top=15, save_path="reports/figures/tabular_missing.png")
 """),
     md("""
 ### 1.2 Xây dựng nhãn và loại rò rỉ nhãn
-Nhãn `is_stem` được suy ra từ cột `job`, nên `job` bị **loại khỏi đặc trưng** (rò rỉ nhãn). Các nhãn nghề không cung cấp thông tin (`other`, `student`, `rather not say`, `unemployed`, `retired`) và hồ sơ không khai báo nghề bị bỏ.
+Nhãn `is_stem` được suy ra từ cột `job`, nên `job` bị **loại khỏi đặc trưng** (rò rỉ nhãn). Các nhãn nghề không cung cấp thông tin (`other`, `student`, `rather not say`, `unemployed`, `retired`) và hồ sơ không khai báo nghề bị bỏ. Sau đó dữ liệu được chia 80% huấn luyện / 20% kiểm tra (stratified); từ đây EDA và thí nghiệm chỉ dùng 80% huấn luyện.
 """),
     code("""
-X, y = prepare_dataset(cfg)
-print("X:", X.shape, "| positives (STEM):", f"{y.mean():.1%}")
+X_all, y_all = prepare_dataset(cfg)
+# Split FIRST: the hold-out test set is never used for EDA, cross-validation or model selection.
+X, X_test, y, y_test = train_test_split(X_all, y_all, test_size=cfg["holdout_size"], stratify=y_all, random_state=cfg["seed"])
+print("All:", X_all.shape, "| train (EDA + CV):", X.shape, "| hold-out test:", X_test.shape)
+print("positives (STEM) - train:", f"{y.mean():.1%}", "| test:", f"{y_test.mean():.1%}")
 print("Columns:", list(X.columns))
 viz.plot_class_distribution(y.map({0: "non-STEM", 1: "STEM"}), "Phân bố nhãn", "reports/figures/tabular_target.png", horizontal=False); plt.show()
 """),
@@ -121,12 +124,15 @@ display(ok[["experiment", "model", "macro_f1", "accuracy", "fit_s", "predict_s"]
     md("""
 **Phân tích (điền sau khi có số liệu):** (1) chiến lược xử lý thiếu nào tốt nhất và vì sao (cờ thiếu có mang thông tin?); (2) One-Hot so với frequency / ordinal-code; (3) scale có ảnh hưởng LR/SVM nhưng không ảnh hưởng RF?; (4) PCA giữ 90/95% phương sai làm tăng hay giảm macro-F1, đổi lại thời gian; (5) mô hình nào cân bằng tốt giữa chất lượng và thời gian.
 """),
-    md("## 4. Đánh giá cuối trên tập kiểm tra giữ lại (20%)"),
+    md("""
+## 4. Đánh giá cuối trên tập kiểm tra giữ lại (20%)
+Tập này được tách **ngay sau khi dựng nhãn** (mục 1.2) và không tham gia EDA, cross-validation hay việc chọn cấu hình. Cấu hình tốt nhất theo CV (chỉ trên 80% huấn luyện) được huấn luyện lại trên toàn bộ phần huấn luyện rồi đánh giá đúng một lần trên tập này, nên điểm hold-out là ước lượng không lạc quan.
+"""),
     code("""
 best = ok.sort_values("macro_f1_mean", ascending=False).iloc[0]
 print("Best by CV:", best["experiment"], "/", best["model"])
 pre_cfg = deep_update(cfg["preprocess"], cfg["experiments"][best["experiment"]])
-X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, stratify=y, random_state=cfg["seed"])
+X_tr, X_te, y_tr, y_te = X, X_test, y, y_test   # train part (used for CV) and untouched hold-out
 final = holdout_evaluate(make_pipeline(pre_cfg, best["model"], cfg["models"][best["model"]], cfg["seed"]), X_tr, y_tr, X_te, y_te, labels=[0, 1])
 print(f"Hold-out macro-F1={final['macro_f1']:.4f}  accuracy={final['accuracy']:.4f}  fit={final['fit_time_s']:.1f}s  predict={final['predict_time_s']:.2f}s")
 viz.plot_confusion(final["confusion"], ["non-STEM", "STEM"], title="Confusion matrix (hold-out)", save_path="reports/figures/tabular_confusion.png"); plt.show()

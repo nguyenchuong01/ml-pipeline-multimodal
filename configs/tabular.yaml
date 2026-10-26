@@ -1,6 +1,7 @@
 # Task 1 - Tabular: OkCupid (JSE) -> predict STEM vs non-STEM occupation
 seed: 42
 cv_folds: 5
+holdout_size: 0.2               # test split carved out before EDA / CV / model selection
 n_jobs: -1
 
 data:
