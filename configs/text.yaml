@@ -1,0 +1,42 @@
+# Task 2 - Text: livedoor News Corpus (Japanese), 9-class topic classification
+seed: 42
+cv_folds: 5
+
+data:
+  url: https://www.rondhuit.com/download/ldcc-20140209.tar.gz
+  dir: data/livedoor
+  test_size: 0.2
+  text_fields: [title, body]      # model input = title + body
+
+tokenizer:
+  backend: fugashi                 # fugashi (MeCab + UniDic-lite) | char
+  pos: [名詞, 動詞, 形容詞]          # keep nouns, verbs, adjectives; set null to keep all tokens
+  lemma: false
+
+# Feature extraction methods (traditional first, then pretrained embeddings)
+features:
+  tfidf_word_1_2:  {type: tfidf_word, ngram_range: [1, 2], min_df: 2, max_df: 0.9, max_features: 200000}
+  tfidf_word_1_1:  {type: tfidf_word, ngram_range: [1, 1], min_df: 2, max_df: 0.9}
+  bow_word_1_1:    {type: bow_word,   ngram_range: [1, 1], min_df: 2, max_df: 0.9}
+  tfidf_char_1_3:  {type: tfidf_char, ngram_range: [1, 3], min_df: 3, max_df: 0.9, max_features: 300000}
+
+embeddings:
+  e5_base:
+    model: intfloat/multilingual-e5-base
+    prefix: "passage: "
+    max_seq_length: 256
+    batch_size: 32
+
+# Classifiers for sparse (TF-IDF / BoW) features
+models_sparse:
+  logreg:        {C: 10.0, max_iter: 2000}
+  svm_linear:    {C: 1.0}
+  complement_nb: {alpha: 0.1}
+  random_forest: {n_estimators: 300, svd_components: 300}   # RF needs dense input -> TruncatedSVD
+
+# Classifiers for dense embeddings
+models_dense:
+  logreg:        {C: 10.0, max_iter: 2000}
+  svm_linear:    {C: 1.0}
+  svm_rbf:       {C: 10.0}
+  random_forest: {n_estimators: 300}

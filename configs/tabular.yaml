@@ -1,0 +1,58 @@
+# Task 1 - Tabular: OkCupid (JSE) -> predict STEM vs non-STEM occupation
+seed: 42
+cv_folds: 5
+n_jobs: -1
+
+data:
+  url: https://github.com/rudeboybert/JSE_OkCupid/raw/master/profiles_revised.csv.zip
+  dir: data/okcupid
+  income_missing_value: -1        # disguised missing value in the raw file
+  target: is_stem
+  stem_jobs: ["science / tech / engineering", "computer / hardware / software"]
+  # non-informative occupation labels are removed (neither STEM nor non-STEM)
+  exclude_jobs: ["other", "student", "rather not say", "unemployed", "retired"]
+  drop_columns: [education, religion, sign, speaks]   # raw columns replaced by cleaned versions
+
+# Baseline preprocessing (every experiment below overrides some keys of this block)
+preprocess:
+  numeric: [age, height, income]
+  ordinal:                                   # ordered categorical features
+    education_level: [high school, two-year college, college/university, masters, advanced degree]
+    drinks: [not at all, rarely, socially, often, very often, desperately]
+    smokes: [no, trying to quit, when drinking, sometimes, yes]
+    drugs: [never, sometimes, often]
+  nominal: [sex, orientation, status, body_type, diet, offspring, pets, religion_base, sign_base, education_status]
+  multilabel: [ethnicity, speaks_langs]
+  min_category_count: 30
+  multihot_min_count: 100
+  missing: indicator          # simple | indicator | drop_high
+  high_missing_threshold: 0.5
+  nominal_encoding: onehot    # onehot | frequency | ordinal
+  scaler: standard            # none | standard | minmax
+  minmax_range: [0, 1]
+  pca: null                   # null | 0.95 | 0.90 | int
+
+# Classifiers evaluated for every experiment
+models:
+  logreg:       {C: 1.0, max_iter: 2000, class_weight: balanced}
+  svm_linear:   {C: 0.1, class_weight: balanced}
+  svm_rbf:      {C: 1.0, class_weight: balanced, max_samples: 8000}   # subsampled for speed
+  random_forest: {n_estimators: 300, min_samples_leaf: 2, class_weight: balanced_subsample}
+
+# One-factor-at-a-time ablations around the baseline above (name -> overrides of `preprocess`)
+experiments:
+  baseline: {}
+  # --- missing-value strategy ---
+  miss_simple_impute:      {missing: simple}
+  miss_drop_high:          {missing: drop_high}
+  # --- categorical encoding ---
+  enc_frequency:           {nominal_encoding: frequency}
+  enc_ordinal_codes:       {nominal_encoding: ordinal}
+  # --- scaling ---
+  scale_none:              {scaler: none}
+  scale_minmax_0_1:        {scaler: minmax, minmax_range: [0, 1]}
+  # --- feature-group ablation: self-reported programming languages hide inside `speaks` ---
+  no_speaks_langs:         {multilabel: [ethnicity]}
+  # --- dimensionality reduction ---
+  pca_95:                  {pca: 0.95}
+  pca_90:                  {pca: 0.90}

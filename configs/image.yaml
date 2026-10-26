@@ -1,0 +1,33 @@
+# Task 3 - Image: CUB-200-2011 (200 bird species), pretrained backbone + classical classifier
+seed: 42
+cv_folds: 3                       # ~30 train images per class -> 3 folds keep >=20 per class
+features_dir: features/image
+
+data:
+  url: https://data.caltech.edu/records/65de6-vp158/files/CUB_200_2011.tgz
+  md5: 97eceeb196236b17998738112f37df78
+  dir: data/cub
+
+runtime:
+  batch_size: 64
+  num_workers: 2
+
+# Each experiment = one feature extractor setting (saved to features/image/*.npy)
+experiments:
+  hog_baseline:        {extractor: {backbone: hog, size: 128}, pca: 256}
+  resnet50_full:       {extractor: {backbone: resnet50, resize: 256, crop: 224}}
+  resnet50_bbox:       {extractor: {backbone: resnet50, resize: 256, crop: 224, use_bbox: true}}
+  resnet50_resize_288: {extractor: {backbone: resnet50, resize: 320, crop: 288}}
+  effnet_b0_full:      {extractor: {backbone: efficientnet_b0, resize: 256, crop: 224}}
+  vit_b16_full:        {extractor: {backbone: vit_base_patch16_224.augreg_in21k_ft_in1k, resize: 256, crop: 224}}
+  dinov2_s14_full:     {extractor: {backbone: vit_small_patch14_dinov2.lvd142m, resize: 256, crop: 224,
+                                    model_kwargs: {dynamic_img_size: true}}}
+
+models:
+  logreg:        {C: 1.0, max_iter: 300}
+  svm_linear_sgd: {alpha: 0.001, max_iter: 30}   # linear SVM via SGD: LinearSVC needs minutes with 200 classes
+  random_forest: {n_estimators: 100, max_features: sqrt}
+
+# Random Forest is very slow with 200 classes, so it only runs on these experiments
+models_only_on:
+  random_forest: [resnet50_full]
